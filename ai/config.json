@@ -1,0 +1,18 @@
+{
+  "CryptoCompare" : {
+    "apiKey"      : "5730ce87bdde0019b940fb60a09405b98a81ad6a222297725ee68d4ac67fff6a",
+    "urlBase"     : "https://min-api.cryptocompare.com/",
+    "endpoints"   : {
+      "usage" : "stats/rate/limit",
+      "dailyOhlcv" : "data/histoday",
+      "fullData"   : "data/pricemultifull"
+    },
+    "rateLimits"  : {
+      "second" : 50,
+      "minute" : 2500,
+      "hour"   : 25000,
+      "day"    : 50000,
+      "month"  : 100000
+    }
+  }
+}
