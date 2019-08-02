@@ -4,15 +4,44 @@ import csv
 import asyncio
 import concurrent.futures
 import requests
+import os
 
+from typing import List
 from datetime import datetime, timezone, timedelta
+
+
+def update_from_env(d: dict, variables: List[str], inplace: bool = False):
+  """
+  Updates dictionary with environment variables
+
+  Arguments:
+    d              (dict): the dictionary to update
+    variables (List[str]): the list of variables to update from the environment
+    inplace        (bool): whether the update should occur inplace
+
+  Returns:
+    A new dictionary with the combined keys if inplace = False
+  """
+  new_keys = {}
+  for var in variables:
+    new_keys[var] = os.environ[var]
+
+  if inplace:
+    d.update(new_keys)
+    return d
+
+  for key in d:
+    if key not in new_keys:
+      new_keys[key] = d[key]
+
+  return new_keys
 
 
 def db_to_csv(source: str, target: str, table: str):
   """
   Converts a sqlite3 database table to a csv file
 
-  Args:
+  Arguments:
     source (str) - the filename of the source database
     target (str) - the filename of the target csv file
     table  (str) - the table to selectr from the database
@@ -30,7 +59,7 @@ def timestamp_floor(ts: int, how: str = 'day', unit: str = 'ms'):
   """
   Gets the floor of the timestamp in terms of how
 
-  Args:
+  Arguments:
     ts (int) - the utc timestamp to floor
     how (str) - one of 'second', 'minute', 'hour', 'day', 'month'
     unit (str) - the unit the timestmap is in (one of 'ms' or 's')
@@ -61,7 +90,7 @@ def noblock(f):
   """
   A decorator for performing an asyncronous request
 
-  Args:
+  Arguments:
     f (func) - the function to wrap
   """
 

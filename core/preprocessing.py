@@ -7,7 +7,7 @@ import numpy as np
 from torch import tensor
 from typing import List
 
-from .tools import timestamp_floor
+from core.tools import timestamp_floor
 
 
 def split(*datasets):

@@ -1,0 +1,18 @@
+{
+  "CryptoCompare": {
+    "urlBase": "https://min-api.cryptocompare.com/",
+    "endpoints": {
+      "usage": "stats/rate/limit",
+      "dailyOhlcv": "data/histoday",
+      "fullData": "data/pricemultifull",
+      "coins": "data/all/coinslist"
+    },
+    "rateLimits": {
+      "second": 50,
+      "minute": 1000,
+      "hour": 20000,
+      "day": 200000,
+      "month": 2000000,
+    }
+  }
+}
