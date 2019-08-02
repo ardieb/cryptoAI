@@ -58,8 +58,7 @@ def squeeze(dataset, how: str = 'day'):
   return dataset.groupby(by = lambda ts: timestamp_floor(ts, how = how))
 
 
-def window_transform(dataset, seq_len: int, train: float, test: float,
-                     targets: List[str]):
+def window_transform(dataset, seq_len: int, split_pct: float, targets: List[str]):
   """
   Transforms a dataset through a sliding window trasnformation. Takes a dataset
   of shape n x m and transforms it to n - w, d, m where w is the window size,
@@ -67,9 +66,8 @@ def window_transform(dataset, seq_len: int, train: float, test: float,
 
   Args:
     dataset         (Any) - the dataset to load (n, m) where n is the number of samples and m is the number of features
-    seq_len         (int) - the length of the sequence of each window, 
-    train         (float) - the percentage of data to use for training
-    test          (float) - the percentage of data to use for testing
+    seq_len         (int) - the length of the sequence of each window,
+    split_pct          (float) - the percentage of data to use for testing
     targets   (List[str]) - the list of columns to use as validation data
 
   Returns:
@@ -100,7 +98,7 @@ def window_transform(dataset, seq_len: int, train: float, test: float,
   dr[:, 1:, :] = d0[:, 1:, :] / d0[:, 0:1, :] - 1
 
   windows, samples, features = dr.shape
-  split_line = int(round(test * windows))
+  split_line = int(round(split_pct * windows))
   bases = d0[split_line:windows + 1, 0:1, targets]
 
   training_data = dr[:split_line, :]

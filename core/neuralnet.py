@@ -44,7 +44,7 @@ def fit_model(model, optimizer, criterion, x_train, y_train, epochs: int):
 
   Arguments:
     model         (Module): the neural network to train
-    optimizer  (Optimizer): the optimizer used to refine computations
+    optimizer        (str): the name of the optimizer used to refine computations
     criterion       (Loss): the loss function used to compute losses
     x_train       (tensor): the x data to train the model
     y_train       (tensor): the y data to train the model
@@ -55,6 +55,7 @@ def fit_model(model, optimizer, criterion, x_train, y_train, epochs: int):
     training_time    (int): the number of milliseconds it took to train
   """
   model.train()
+  optimizer = getattr(opt, optimizer)
   scheduler = opt.lr_scheduler.LambdaLR(optimizer(model.parameters()),
                                         lr_lambda = lambda n: float(0.95 ** n))
 
