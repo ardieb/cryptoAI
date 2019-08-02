@@ -49,7 +49,7 @@ def timestamp_floor(ts: int, how: str = 'day', unit: str = 'ms'):
   timestamp = dt.replace(tzinfo=timezone.utc).timestamp()
   return int(timestamp * 1000 if unit == 'ms' else timestamp)
 
-def async_request(f):
+def noblock(f):
   """
   A decorator for performing an asyncronous request
 
@@ -58,33 +58,33 @@ def async_request(f):
   """
   async def wrapper(*args, **kwargs):
     with concurrent.futures.ThreadPoolExecutor(max_workers = 20) as executor:
-      loop = asyncio.get_event_loop() 
+      loop = asyncio.get_event_loop()
       response = await loop.run_in_executor(executor, lambda: f(*args, **kwargs))
       return response
   return wrapper
 
-@async_request
+@noblock
 def aget(url, **kwargs):
   """
   Async version of get
   """
   return requests.get(url, **kwargs)
 
-@async_request
+@noblock
 def apost(url, **kwargs):
   """
   Async version of post
   """
   return requests.post(url, **kwargs)
 
-@async_request
+@noblock
 def aput(url, **kwargs):
   """
   Async version of put
   """
   return requests.put(url, **kwargs)
 
-@async_request
+@noblock
 def adel(url, **kwargs):
   """
   Async version of del

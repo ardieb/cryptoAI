@@ -3,7 +3,6 @@ import asyncio
 import time
 import pandas as pd
 
-from threading import Timer
 from typing import List
 from tools import adel, aput, apost, aget, time_left_in_month
 
@@ -57,40 +56,16 @@ class CryptoCompareAPI:
     """
     Starts timers to reset statistics
     """
+    l = asyncio.get_event_loop()
     for timer in self.timers:
-      self.timers[timer]['started'] = self.milliseconds()
-      if timer == 'second': duration = 1000 
+      ms = self.milliseconds()
+      self.timers[timer]['started'] = ms
+      if timer == 'second': duration = 1000
       elif timer == 'minute': duration = 60 * 1000
       elif timer == 'hour': duration = 60 * 60 * 1000
-      elif timer == 'month': duration = time_left_in_month()
+      elif timer == 'day': duration = 24 * 60 * 60 * 1000
+      else: duration = time_left_in_month()
       self.timers[timer]['duration'] = duration
-      self.timers[timer]['thread'] = Timer(duration / 1000, lambda : self.reset_timer(timer))
-      self.timers[timer]['thread'].start()
-  
-  def stop_timers(self):
-    """
-    Stops timers to reset statistics
-    """
-    for timer in self.timers:
-      self.timers[timer]['thread'].cancel()
-  
-  def reset_timer(self, timer: str):
-    """
-    Resets timer timer
-
-    Args:
-      timer (str) - the timer to reset
-    """
-    self.callsMade[timer] = 0
-    self.callsRemain[timer] = self.limits[timer]
-    self.timers[timer]['started'] = self.milliseconds()
-    if timer == 'second': duration = 1000 
-    elif timer == 'minute': duration = 60 * 1000
-    elif timer == 'hour': duration = 60 * 60 * 1000
-    elif timer == 'month': duration = time_left_in_month()
-    self.timers[timer]['duration'] = duration
-    self.timers[timer]['thread'] = Timer(duration / 1000, lambda : self.reset_timer(timer))
-    self.timers[timer]['thread'].start()
 
   def milliseconds(self):
     """
@@ -98,11 +73,19 @@ class CryptoCompareAPI:
     """
     return int(time.time() * 1000)
   
-  def incr_call_counts(self):
+  def update(self):
     """
     Increments call counters
     """
     for timer in self.timers:
+      elapsed = self.milliseconds() - self.timers[timer]['started']
+      duration = self.timers[timer]['duration']
+      if elapsed >= duration:
+        self.callsMade[timer] = 0
+        self.callsRemain[timer] = self.limits[timer]
+        self.timers[timer]['started'] = self.milliseconds()
+        duration = time_left_in_month() if timer == 'month' else 2 * duration - elapsed
+        self.timers[timer]['duration'] = duration
       self.callsMade[timer] += 1
       self.callsRemain[timer] -= 1
 
@@ -121,7 +104,7 @@ class CryptoCompareAPI:
     """
     await self.throttle()
     response = await aget(self.urlBase + self.endpoints['usage'], headers = self.authHeader)
-    self.incr_call_counts()
+    self.update()
     self.lastCall = self.milliseconds()
     response.raise_for_status()
     js = response.json()
@@ -153,6 +136,7 @@ class CryptoCompareAPI:
         'volumeFrom',
         'volumeTo',
       ])
+    self.update()
     await self.throttle()
     response = await aget(self.urlBase + self.endpoints['dailyOhlcv'], headers = self.authHeader, params = {
       'fsym'  :        base,
@@ -160,8 +144,6 @@ class CryptoCompareAPI:
       'limit' :       limit,
       'toT'   : toTime/1000,
     })
-
-    self.incr_call_counts()
     self.lastCall = self.milliseconds()
     response.raise_for_status()
     js = response.json()
@@ -218,12 +200,12 @@ class CryptoCompareAPI:
         'totalVolume24Hr'   ,
         'totalVolume24HrTo' ,
       ])
+    self.update()
     await self.throttle()
     response = await aget(self.urlBase + self.endpoints['fullData'], headers = self.authHeader, params = {
       'fsyms'   :  ','.join(bases)[:-1],
       'tosyms' : ','.join(quotes)[:-1],
     })
-    self.incr_call_counts()
     self.lastCall = self.milliseconds()
     response.raise_for_status()
     js = response.json()
@@ -281,9 +263,9 @@ class CryptoCompareAPI:
         'blockReward',
         'blockTime'
       ])
+    self.update()
     await self.throttle()
     response = await aget(self.urlBase + self.endpoints['coins'])
-    self.incr_call_counts()
     self.lastCall = self.milliseconds()
     response.raise_for_status()
     js = response.json()
