@@ -80,13 +80,15 @@ def window_transform(dataset, seq_len: int, split_pct: float, targets: List[str]
     window_size          (int) - integer representing how many samples the model can look at concurrently
   """
   n, m = dataset.shape
+  raw = dataset.values
   for x in range(0, n):
     for y in range(0, m):
-      if dataset.loc[x, y] == 0: dataset.loc[x, y] = dataset.loc[x - 1, y]
+      if raw[x][y] == 0:
+        raw[x][y] = raw[x - 1][y]
 
   targets = [dataset.columns.get_loc(target) for target in targets]
 
-  data = dataset.tolist()
+  data = raw.tolist()
 
   res = []
 

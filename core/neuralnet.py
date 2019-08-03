@@ -3,12 +3,11 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as opt
-import torch.nn.functional as fun
 
 import matplotlib.pyplot as plt
 
 
-def create_model(window_size: int, drop_rate: float, activation: str, targets: int):
+def create_model(window_size: int, features: int, drop_rate: float, targets: int):
   """
   Creates a three layer RNN neural network for predicting crypto currency prices based on historic
   data. The input to the model is a tensor of shape (number of frames, frame size, feature size),
@@ -19,20 +18,28 @@ def create_model(window_size: int, drop_rate: float, activation: str, targets: i
 
   Arguments:
     window_size (int): the size of the sliding window for feature extraction (default # of days)
+    features    (int): the number of hidden features per model
     drop_rate (float): the rate at which dropout occurs in the LSTM layers
-    activation  (str): the name of the activation function to use
     targets     (int): the number of target features this model attempts to predict
 
   Returns:
     model    (Module): A three layer RNN neural network
   """
-  l1 = nn.LSTM(window_size * 2, bidirectional = True, dropout = drop_rate)
-  l2 = nn.LSTM(window_size * 2, bidirectional = True, dropout = drop_rate)
-  o = nn.Linear(window_size, targets)
-  f = getattr(fun, activation)
+  l = nn.LSTM(features, window_size, bidirectional = True, dropout = drop_rate, num_layers = 2, batch_first = True)
+  o = nn.Linear(window_size * 2, targets)
 
-  model = nn.Sequential(l1, l2, o, f)
-  return model
+  class RNN(nn.Module):
+
+    def __init__(self):
+      super(RNN, self).__init__()
+      self.LstmLayer = l
+      self.OutputLayer = o
+
+    def forward (self, x):
+      out, states = self.LstmLayer(x)
+      return self.OutputLayer(out)
+
+  return RNN()
 
 
 def fit_model(model, optimizer, criterion, x_train, y_train, epochs: int):
@@ -54,15 +61,17 @@ def fit_model(model, optimizer, criterion, x_train, y_train, epochs: int):
     model         (Module): a neural network trained on using the input parameters
     training_time    (int): the number of milliseconds it took to train
   """
+  x_train = x_train.float()
+  y_train = y_train.float()
+  model = model.float()
   model.train()
-  optimizer = getattr(opt, optimizer)
-  scheduler = opt.lr_scheduler.LambdaLR(optimizer(model.parameters()),
-                                        lr_lambda = lambda n: float(0.95 ** n))
-
+  optimizer = getattr(opt, optimizer)(model.parameters())
+  scheduler = opt.lr_scheduler.LambdaLR(optimizer, lr_lambda = lambda n: float(0.01 * 1.005 ** n))
+  criterion = getattr(nn, criterion)()
   start = time.time()
   for epoch in range(epochs):
-    optimizer.zero_grad()
     # forward pass
+    optimizer.zero_grad()
     y_pred = model(x_train)
     # get losses
     loss = criterion(y_pred.squeeze(), y_train)
@@ -72,6 +81,7 @@ def fit_model(model, optimizer, criterion, x_train, y_train, epochs: int):
     # backward step
     loss.backward()
     # steps the optimizer
+    optimizer.step()
     scheduler.step()
 
   training_time = int(round((time.time() - start) * 1000))
@@ -96,7 +106,11 @@ def test_model(model, x_test, y_test, bases, symbol: str):
     real_y_pred (tensor): the real predicted y values (un-normed)
     fig           (plot): a figure plotting the real y values against the predicted y values
   """
-  y_pred = model.predict(x_test)
+  x_test = x_test.float()
+  y_test = y_test.float()
+  bases = bases.float()
+
+  y_pred = model(x_test).squeeze()
 
   real_y_test = torch.zeros_like(y_test)
   real_y_pred = torch.zeros_like(y_pred)
@@ -104,14 +118,14 @@ def test_model(model, x_test, y_test, bases, symbol: str):
   for i in range(y_test.shape[0]):
     y = y_test[i]
     predict = y_pred[i]
-    real_y_test[i] = (y + 1) * bases[i]
-    real_y_pred[i] = (predict + 1) * bases[i]
+    real_y_test[i] = (y + 1) * bases[i][0]
+    real_y_pred[i] = (predict + 1) * bases[i][0]
 
   fig = plt.figure(figsize = (10, 5))
   ax = fig.add_subplot(111)
   ax.set_title(f'{symbol} price over time')
-  plt.plot(real_y_pred, color = 'green', label = 'Predicted Price')
-  plt.plot(real_y_test, color = 'red', label = 'Real Price')
+  plt.plot(real_y_pred.detach().numpy(), color = 'green')
+  plt.plot(real_y_test.detach().numpy(), color = 'red')
   ax.set_ylabel("Price (USD)")
   ax.set_xlabel("Time (Days)")
   ax.legend()
@@ -135,6 +149,9 @@ def price_change(y_prior, y_test, y_pred, symbol: str):
     delta_real (tensor): the real changes in price between frames
     fig          (plot): a plot showing the changes in price and the predicted changes in price
   """
+  y_prior = y_prior.float()
+  y_test = y_test.float()
+  y_pred = y_pred.float()
   y_prior = torch.reshape(y_prior, (-1, 1))
   y_test = torch.reshape(y_test, (-1, 1))
 
@@ -144,8 +161,8 @@ def price_change(y_prior, y_test, y_pred, symbol: str):
   fig = plt.figure(figsize = (10, 6))
   ax = fig.add_subplot(111)
   ax.set_title(f'Percent Change in {symbol} Price Per Day')
-  plt.plot(delta_pred, color = 'green', label = 'Predicted Percent Change')
-  plt.plot(delta_real, color = 'red', label = 'Real Percent Change')
+  plt.plot(delta_pred.detach().numpy(), color = 'green')
+  plt.plot(delta_real.detach().numpy(), color = 'red')
   plt.ylabel("Percent Change")
   plt.xlabel("Time (Days)")
   ax.legend()
